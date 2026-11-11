@@ -5,19 +5,20 @@
 ## 整包下载
 
 全部楼层驱动 + macOS 驱动 + 图文安装说明打包为一个 zip：
-**https://github.com/Rerauniverse/saidc-printer/releases/download/v1.0/C5570.zip**（约 73MB，无需登录）
+
+[下载 C5570.zip（约 73MB，无需登录）](https://github.com/Rerauniverse/saidc-printer/releases/download/v1.0/C5570.zip)
 
 ## 楼层映射
 
-| 楼层 | 打印机名 | IP | 驱动包 |
+| 楼层 | 打印机名 | IP | 驱动目录 |
 |---|---|---|---|
-| 一层 | FF K505p for ApeosPort C5570-1层打印机 | 192.168.16.79 | 一层5570打印安装包16.79.zip |
-| 二层生态 | FF K505p for ApeosPort C5570-2层生态打印机 | 192.168.16.103 | 二层生态5570打印安装包16.103.zip |
-| 二层研发（2南） | FF K505p for ApeosPort C5570-2南 | 192.168.26.188 | 二层研发打印驱动26.188.rar |
-| 四层 | FF K505p for ApeosPort C5570-4 | 192.168.16.16 | 四层打印驱动16.16.rar |
-| 五层 | FF K505p for ApeosPort C5570-5 | 192.168.16.31 | 五层打印驱动16.31.rar |
+| 一层 | FF K505p for ApeosPort C5570-1层打印机 | 192.168.16.79 | `一层/` |
+| 二层生态 | FF K505p for ApeosPort C5570-2层生态打印机 | 192.168.16.103 | `二层生态/` |
+| 二层研发（2南） | FF K505p for ApeosPort C5570-2南 | 192.168.26.188 | `二层研发/` |
+| 四层 | FF K505p for ApeosPort C5570-4 | 192.168.16.16 | `四层/` |
+| 五层 | FF K505p for ApeosPort C5570-5 | 192.168.16.31 | `五层/` |
 
-驱动均为 `FF K505p for ApeosPort C5570 PCL 6`，端口 RAW 9100。文件名末尾数字即 IP 末段。
+驱动均为 `FF K505p for ApeosPort C5570 PCL 6`，端口 RAW 9100。各目录内 `EzInst/setup.ini` 已预置对应 IP 与打印机名。
 
 ## 目录结构
 
@@ -45,7 +46,7 @@ python saidc-printer/scripts/install_printer.py install 1 --force   # 一键安�
 python saidc-printer/scripts/install_printer.py uninstall 1 --yes   # 卸载
 ```
 
-楼层标识：`1` / `2eco` / `2rd` / `4` / `5`，也可直接用 IP。rar 解压需要本机安装 WinRAR。
+楼层标识：`1` / `2eco` / `2rd` / `4` / `5`，也可直接用 IP。驱动已解压为目录，无需 WinRAR 等解压工具。
 
 **自动下载驱动**：同事电脑上无需手动拷贝驱动 —— skill 会自动从本仓库下载（公开仓库无需登录）。
 
