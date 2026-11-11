@@ -2,6 +2,11 @@
 
 公司各楼层富士胶片（FUJIFILM/Fuji Xerox）ApeosPort C5570 网络打印机驱动包与 WorkBuddy Skill 一键安装工具。
 
+## 整包下载
+
+全部楼层驱动 + macOS 驱动 + 图文安装说明打包为一个 zip：
+**https://github.com/Rerauniverse/saidc-printer/releases/download/v1.0/C5570.zip**（约 73MB，无需登录）
+
 ## 楼层映射
 
 | 楼层 | 打印机名 | IP | 驱动包 |
