@@ -58,6 +58,16 @@ UNRAR_CANDIDATES = [
 ]
 
 
+def find_printer(token: str):
+    """按楼层号/IP/关键字查找映射条目。"""
+    t = token.strip().lower()
+    for p in PRINTERS:
+        if t in (p["key"].lower(), p["ip"], p["label"]) or t in p["label"]:
+            return p
+    raise SystemExit(f"[!] 无法识别的打印机标识: {token}。可用: "
+                     + ", ".join(f"{p['key']}({p['label']}, {p['ip']})" for p in PRINTERS))
+
+
 def github_token():
     """按优先级获取 GitHub 凭据: GITHUB_TOKEN 环境变量 > gh CLI > git 凭据管理器。
     公开仓库可无凭据；私有仓库则需要凭据且为协作者。"""
