@@ -52,7 +52,7 @@ python scripts/install_printer.py uninstall 1 --yes
 - **完整性校验**：安装前脚本对 `setup.exe`、`EzInst/setup.exe`、`EzInst/verup.exe` 做 SHA256 校验（KNOWN_HASHES），与可信版本不符即拒绝安装，防止仓库内容被篡改注入恶意程序。更新驱动版本后运行 `hash <楼层>` 获取新哈希并更新脚本。
 - 安装需要管理员权限；脚本通过 UAC 弹窗提升，不可在无确认的情况下静默提权。
 - `setup.ini` 为 UTF-16LE 编码（带 BOM），读取时必须按 UTF-16LE 解码。
-- rar 包解压依赖 WinRAR 的 `UnRAR.exe`（已确认本机位于 `C:\Program Files\WinRAR\UnRAR.exe`）；驱动目录中 `dl_`/`xr_` 等扩展名文件由安装器自行解包，无需预处理。
+- 仓库维护时才可能需要 WinRAR 的 `UnRAR.exe`（本机位于 `C:\Program Files\WinRAR\UnRAR.exe`）来解压新的 rar 驱动包；同事安装时驱动已是解压目录，无需任何解压工具。目录中 `dl_`/`xr_` 等扩展名文件由安装器自行解包，无需预处理。
 - Windows 下添加端口/打印机等操作也可用 PowerShell `Get-Printer` / `Remove-Printer` / `Get-PrinterPort` / `Remove-PrinterPort` 直接操作，脚本内部即采用此方式。
 - 打印机名以各包 `setup.ini` 的 `PrinterName` 为准（如 `FF K505p for ApeosPort C5570-1层打印机`）；映射表与 INI 不一致时以 INI 为准并更新 references。
 

@@ -4,17 +4,17 @@
 
 驱动型号全部为 `FF K505p for ApeosPort C5570 PCL 6`，端口协议均为 RAW 9100（Standard TCP/IP Port，SNMP 关闭），均为默认打印机（DefaultPrinter=1）。
 
-| 楼层标识 | 显示 | 打印机名 (PrinterName) | IP (OutPort/HostName) | 驱动包文件 |
+| 楼层标识 | 显示 | 打印机名 (PrinterName) | IP (OutPort/HostName) | 驱动目录 |
 |---|---|---|---|---|
-| `1` | 一层 | FF K505p for ApeosPort C5570-1层打印机 | 192.168.16.79 | 一层5570打印安装包16.79.zip |
-| `2eco` | 二层生态 | FF K505p for ApeosPort C5570-2层生态打印机 | 192.168.16.103 | 二层生态5570打印安装包16.103.zip |
-| `2rd` | 二层研发（2南） | FF K505p for ApeosPort C5570-2南 | 192.168.26.188 | 二层研发打印驱动26.188.rar |
-| `4` | 四层 | FF K505p for ApeosPort C5570-4 | 192.168.16.16 | 四层打印驱动16.16.rar |
-| `5` | 五层 | FF K505p for ApeosPort C5570-5 | 192.168.16.31 | 五层打印驱动16.31.rar |
+| `1` | 一层 | FF K505p for ApeosPort C5570-1层打印机 | 192.168.16.79 | `一层/` |
+| `2eco` | 二层生态 | FF K505p for ApeosPort C5570-2层生态打印机 | 192.168.16.103 | `二层生态/` |
+| `2rd` | 二层研发（2南） | FF K505p for ApeosPort C5570-2南 | 192.168.26.188 | `二层研发/` |
+| `4` | 四层 | FF K505p for ApeosPort C5570-4 | 192.168.16.16 | `四层/` |
+| `5` | 五层 | FF K505p for ApeosPort C5570-5 | 192.168.16.31 | `五层/` |
 
-> 注：文件名末尾的数字即打印机 IP 的最后一段。若新增打印机，把新包放入根目录、读取包内 `EzInst/setup.ini` 更新本表与脚本中的映射。
+> 注：驱动包已解压为上述目录，目录名即楼层。若新增打印机，把新驱动解压为目录放入根目录、读取目录内 `EzInst/setup.ini` 更新本表与脚本中的映射。
 
-## 驱动包结构（zip 与 rar 相同）
+## 驱动目录结构（5 个楼层结构相同）
 
 ```
 <包名>/
