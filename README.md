@@ -17,12 +17,8 @@
 ## 目录结构
 
 ```
+一层/ 二层生态/ 二层研发/ 四层/ 五层/   # 各楼层驱动（解压后目录，根级 setup.exe 一键安装）
 saidc-printer/            # WorkBuddy Skill（SKILL.md + 安装脚本 + 参考资料）
-一层5570打印安装包16.79.zip
-二层生态5570打印安装包16.103.zip
-二层研发打印驱动26.188.rar
-四层打印驱动16.16.rar
-五层打印驱动16.31.rar
 新打印机一键安装方法.doc   # 图文安装说明（Win10）
 macos 苹果/                # macOS 驱动 dmg + 视频教程
 ```
@@ -30,7 +26,7 @@ macos 苹果/                # macOS 驱动 dmg + 视频教程
 ## Windows 一键安装（手动方式）
 
 1. **先删除已有 C5570 打印机**（设置 → 蓝牙和其他设备 → 打印机和扫描仪），否则安装报错。
-2. 解压对应楼层驱动包，右键以管理员身份运行根目录 `setup.exe`。
+2. 进入对应楼层目录，右键以管理员身份运行根目录 `setup.exe`。
 3. 弹窗确认安装；完成后询问是否重启时点"否"。
 
 ## WorkBuddy Skill 方式
@@ -46,7 +42,7 @@ python saidc-printer/scripts/install_printer.py uninstall 1 --yes   # 卸载
 
 楼层标识：`1` / `2eco` / `2rd` / `4` / `5`，也可直接用 IP。rar 解压需要本机安装 WinRAR。
 
-**自动下载驱动**：同事电脑上无需手动拷贝驱动包 —— skill 会自动从本仓库下载（`raw.githubusercontent.com`，公开仓库无需登录）。
+**自动下载驱动**：同事电脑上无需手动拷贝驱动 —— skill 会自动从本仓库下载（公开仓库无需登录）。
 
 ## macOS 安装
 

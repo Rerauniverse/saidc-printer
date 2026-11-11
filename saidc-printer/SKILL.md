@@ -8,7 +8,7 @@ agent_created: true
 
 ## Overview
 
-本 skill 用于在公司 Windows（Win10/11）或 macOS 电脑上安装各楼层 ApeosPort C5570 网络打印机。每个楼层的驱动包（zip/rar）内含富士胶片 EzInst 一键安装程序，`EzInst/setup.ini` 已预配置好打印机名、TCP/IP 端口（RAW 9100）和默认打印机标志，运行包根目录的 `setup.exe` 即完成"驱动 + 端口 + 打印机"全部安装。
+本 skill 用于在公司 Windows（Win10/11）或 macOS 电脑上安装各楼层 ApeosPort C5570 网络打印机。每个楼层的驱动目录内含富士胶片 EzInst 一键安装程序，`EzInst/setup.ini` 已预配置好打印机名、TCP/IP 端口（RAW 9100）和默认打印机标志，运行驱动目录根下的 `setup.exe` 即完成"驱动 + 端口 + 打印机"全部安装。
 
 楼层→打印机→驱动包映射、原始安装文档要点、故障排查见 `references/printer-map.md`。核心工具为 `scripts/install_printer.py`。
 
@@ -47,11 +47,11 @@ python scripts/install_printer.py uninstall 1 --yes
 
 ## 注意事项
 
-- 驱动包可放在本地根目录，也可放在 GitHub 仓库 `Rerauniverse/saidc-printer`：本地缺失时脚本会自动从仓库 raw 下载（可用环境变量 `PRN_DRIVER_GITHUB_REPO` / `PRN_DRIVER_GITHUB_BRANCH` 覆盖）。
+- 驱动以解压后的目录形式存放：`一层/`、`二层生态/`、`二层研发/`、`四层/`、`五层/`（各含根级 `setup.exe` 与 `EzInst/setup.ini`）。可放本地根目录，也可存于 GitHub 仓库 `Rerauniverse/saidc-printer`；本地缺失时脚本自动下载仓库 archive 并解出对应目录（可用环境变量 `PRN_DRIVER_GITHUB_REPO` / `PRN_DRIVER_GITHUB_BRANCH` 覆盖）。
 - 下载认证按优先级读取：环境变量 `GITHUB_TOKEN` → `gh auth token` → git 凭据管理器。公开仓库无凭据也可直接下载；私有仓库则需要凭据且为协作者。
 - 安装需要管理员权限；脚本通过 UAC 弹窗提升，不可在无确认的情况下静默提权。
 - `setup.ini` 为 UTF-16LE 编码（带 BOM），读取时必须按 UTF-16LE 解码。
-- rar 包解压依赖 WinRAR 的 `UnRAR.exe`（已确认本机位于 `C:\Program Files\WinRAR\UnRAR.exe`）。
+- rar 包解压依赖 WinRAR 的 `UnRAR.exe`（已确认本机位于 `C:\Program Files\WinRAR\UnRAR.exe`）；驱动目录中 `dl_`/`xr_` 等扩展名文件由安装器自行解包，无需预处理。
 - Windows 下添加端口/打印机等操作也可用 PowerShell `Get-Printer` / `Remove-Printer` / `Get-PrinterPort` / `Remove-PrinterPort` 直接操作，脚本内部即采用此方式。
 - 打印机名以各包 `setup.ini` 的 `PrinterName` 为准（如 `FF K505p for ApeosPort C5570-1层打印机`）；映射表与 INI 不一致时以 INI 为准并更新 references。
 

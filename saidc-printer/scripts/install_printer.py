@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-printer-driver-install: 楼层 ApeosPort C5570 打印机驱动一键安装工具
+saidc-printer: 楼层 ApeosPort C5570 打印机驱动一键安装工具
+
+驱动以解压后的目录形式存放（本地根目录或 GitHub 仓库），本地缺失时
+自动从 GitHub 仓库 archive 下载并解出对应目录。
 
 用法:
   python install_printer.py list                 # 列出楼层打印机与安装状态
@@ -10,7 +13,8 @@ printer-driver-install: 楼层 ApeosPort C5570 打印机驱动一键安装工具
   python install_printer.py uninstall <楼层> [--yes]
   python install_printer.py read-ini <楼层>      # 显示包内 setup.ini 配置
 
-环境变量 PRN_DRIVER_ROOT 或 --root 指定驱动包根目录。
+环境变量 PRN_DRIVER_ROOT 或 --root 指定驱动根目录；
+PRN_DRIVER_GITHUB_REPO / PRN_DRIVER_GITHUB_BRANCH 覆盖云端仓库。
 """
 import argparse
 import configparser
@@ -20,9 +24,7 @@ import shutil
 import socket
 import subprocess
 import sys
-import tempfile
 import urllib.error
-import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -30,23 +32,23 @@ from pathlib import Path
 PRINTERS = [
     {"key": "1",    "label": "一层",            "ip": "192.168.16.79",
      "name": "FF K505p for ApeosPort C5570-1层打印机",
-     "pkg": "一层5570打印安装包16.79.zip"},
+     "dir": "一层"},
     {"key": "2eco", "label": "二层生态",        "ip": "192.168.16.103",
      "name": "FF K505p for ApeosPort C5570-2层生态打印机",
-     "pkg": "二层生态5570打印安装包16.103.zip"},
+     "dir": "二层生态"},
     {"key": "2rd",  "label": "二层研发(2南)",   "ip": "192.168.26.188",
      "name": "FF K505p for ApeosPort C5570-2南",
-     "pkg": "二层研发打印驱动26.188.rar"},
+     "dir": "二层研发"},
     {"key": "4",    "label": "四层",            "ip": "192.168.16.16",
      "name": "FF K505p for ApeosPort C5570-4",
-     "pkg": "四层打印驱动16.16.rar"},
+     "dir": "四层"},
     {"key": "5",    "label": "五层",            "ip": "192.168.16.31",
      "name": "FF K505p for ApeosPort C5570-5",
-     "pkg": "五层打印驱动16.31.rar"},
+     "dir": "五层"},
 ]
 
 DEFAULT_ROOT = r"C:\Users\a3861\Desktop\超智算\打印机驱动"
-# 本地无驱动包时，从该 GitHub 仓库（raw）自动下载。需为协作者并已登录。
+# 本地缺驱动目录时，从该 GitHub 仓库自动下载（公开仓库无需凭据）
 GITHUB_REPO = os.environ.get("PRN_DRIVER_GITHUB_REPO",
                              "Rerauniverse/saidc-printer")
 GITHUB_BRANCH = os.environ.get("PRN_DRIVER_GITHUB_BRANCH", "main")
@@ -57,7 +59,8 @@ UNRAR_CANDIDATES = [
 
 
 def github_token():
-    """按优先级获取 GitHub 凭据: GITHUB_TOKEN 环境变量 > gh CLI > git 凭据管理器。"""
+    """按优先级获取 GitHub 凭据: GITHUB_TOKEN 环境变量 > gh CLI > git 凭据管理器。
+    公开仓库可无凭据；私有仓库则需要凭据且为协作者。"""
     t = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if t:
         return t.strip()
@@ -79,73 +82,49 @@ def github_token():
     return None
 
 
-def ensure_pkg(root: Path, p: dict) -> Path:
-    """确保驱动包可用：本地存在则直接用，否则从 GitHub 私有仓库下载。"""
-    pkg = root / p["pkg"]
-    if pkg.exists():
-        return pkg
-    root.mkdir(parents=True, exist_ok=True)
+def github_headers():
     tok = github_token()
-    if not tok:
-        # 公开仓库无需凭据，直接匿名下载；私有仓库会得到 404 并提示
-        print(f"[*] 本地无驱动包，从 GitHub 下载: {p['pkg']} ...")
-        url = (f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/"
-               + urllib.parse.quote(p["pkg"]))
-        headers = {"User-Agent": "saidc-printer"}
-        err_hint = "仓库不存在或文件未上传"
-    else:
-        print(f"[*] 本地无驱动包，从 GitHub 下载（已认证）: {p['pkg']} ...")
-        url = (f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/"
-               + urllib.parse.quote(p["pkg"]))
-        headers = {"Authorization": f"token {tok}", "User-Agent": "saidc-printer"}
-        err_hint = "仓库不存在/文件未上传，或凭据无权限"
-    req = urllib.request.Request(url, headers=headers)
+    h = {"User-Agent": "saidc-printer"}
+    if tok:
+        h["Authorization"] = f"token {tok}"
+    return h
+
+
+def ensure_dir(root: Path, p: dict) -> Path:
+    """确保驱动目录可用：本地存在直接返回，否则从 GitHub 仓库 archive 下载。"""
+    dest = root / p["dir"]
+    if (dest / "EzInst" / "setup.ini").exists():
+        return dest
+    root.mkdir(parents=True, exist_ok=True)
+    url = f"https://codeload.github.com/{GITHUB_REPO}/zip/refs/heads/{GITHUB_BRANCH}"
+    auth = "（已认证）" if github_token() else ""
+    print(f"[*] 本地无驱动目录，从 GitHub 下载仓库{auth}: {GITHUB_REPO} ...")
+    req = urllib.request.Request(url, headers=github_headers())
     try:
-        with urllib.request.urlopen(req, timeout=120) as r:
+        with urllib.request.urlopen(req, timeout=600) as r:
             data = r.read()
     except urllib.error.HTTPError as e:
-        raise SystemExit(f"[!] 下载失败 HTTP {e.code}（{err_hint}）: {url}")
-    pkg.write_bytes(data)
-    print(f"[*] 下载完成 {len(data)/1e6:.1f} MB -> {pkg}")
-    return pkg
+        raise SystemExit(f"[!] 仓库下载失败 HTTP {e.code}: {url}")
+    print(f"[*] 下载完成 {len(data)/1e6:.1f} MB，解压中 ...")
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        z.extractall(root)
+    repo_name = GITHUB_REPO.split("/")[-1] + "-" + GITHUB_BRANCH
+    src = root / repo_name / p["dir"]
+    if not src.exists():
+        raise SystemExit(f"[!] 仓库中未找到目录 {p['dir']}，请确认仓库已更新。")
+    if dest.exists():
+        shutil.rmtree(dest, ignore_errors=True)
+    shutil.move(str(src), str(dest))
+    # 清理 archive 解出的仓库根目录残留
+    repo_root = root / repo_name
+    if repo_root.exists():
+        shutil.rmtree(repo_root, ignore_errors=True)
+    print(f"[*] 驱动目录就绪 -> {dest}")
+    return dest
 
 
-def find_printer(token: str):
-    """按楼层号/IP/关键字查找映射条目。"""
-    t = token.strip().lower()
-    for p in PRINTERS:
-        if t in (p["key"].lower(), p["ip"], p["label"]) or t in p["label"]:
-            return p
-    raise SystemExit(f"[!] 无法识别的打印机标识: {token}。可用: "
-                     + ", ".join(f"{p['key']}({p['label']}, {p['ip']})" for p in PRINTERS))
-
-
-def find_unrar():
-    for c in UNRAR_CANDIDATES:
-        if Path(c).exists():
-            return c
-    return None
-
-
-def extract_setup_ini(pkg_path: Path) -> str:
-    """从 zip/rar 驱动包中直接读出 EzInst/setup.ini 的文本内容。"""
-    ext = pkg_path.suffix.lower()
-    if ext == ".zip":
-        with zipfile.ZipFile(pkg_path) as z:
-            entry = next(n for n in z.namelist()
-                         if n.upper().endswith("EZINST/SETUP.INI"))
-            raw = z.read(entry)
-    elif ext == ".rar":
-        unrar = find_unrar()
-        if not unrar:
-            raise SystemExit("[!] 未找到 UnRAR.exe（WinRAR），无法读取 rar 包")
-        lst = subprocess.run([unrar, "lb", "-p-", "--", str(pkg_path)],
-                             capture_output=True).stdout.decode("gbk", "replace")
-        entry = next(l for l in lst.splitlines() if l.lower().endswith("ezinst/setup.ini"))
-        raw = subprocess.run([unrar, "p", "-inul", "-p-", "--", str(pkg_path), entry],
-                             capture_output=True).stdout
-    else:
-        raise SystemExit(f"[!] 不支持的包类型: {pkg_path}")
+def setup_ini_text(driver_dir: Path) -> str:
+    raw = (driver_dir / "EzInst" / "setup.ini").read_bytes()
     return raw.decode("utf-16-le", errors="replace").lstrip("\ufeff")
 
 
@@ -185,35 +164,20 @@ def remove_printer_and_port(name: str, ip: str):
        f'| Remove-PrinterPort -ErrorAction SilentlyContinue')
 
 
-def extract_pkg(pkg_path: Path, dest: Path):
-    ext = pkg_path.suffix.lower()
-    if ext == ".zip":
-        with zipfile.ZipFile(pkg_path) as z:
-            z.extractall(dest)
-    else:
-        unrar = find_unrar()
-        if not unrar:
-            raise SystemExit("[!] 未找到 UnRAR.exe（WinRAR），请安装 WinRAR 后重试")
-        subprocess.run([unrar, "x", "-y", "-p-", "--", str(pkg_path), str(dest) + "\\"],
-                       check=True, capture_output=True)
-
-
 def cmd_list(args):
     root = Path(args.root)
     installed = get_local_printers()
-    print(f"驱动包根目录: {root}")
-    print(f"{'标识':<5}{'楼层':<10}{'IP':<18}{'包':<34}{'网络':<6}已安装")
+    print(f"驱动根目录: {root}")
+    print(f"{'标识':<5}{'楼层':<10}{'IP':<18}{'驱动目录':<30}{'网络':<6}已安装")
     for p in PRINTERS:
-        pkg = root / p["pkg"]
+        d = root / p["dir"]
         net = "通" if tcp_probe(p["ip"]) else "不通"
         has = "是" if p["name"] in installed else "否"
-        if pkg.exists():
-            pkgok = "√本地"
-        elif github_token():
-            pkgok = "↧云端可下载"
+        if (d / "EzInst" / "setup.ini").exists():
+            d_ok = "√本地"
         else:
-            pkgok = "×缺包"
-        print(f"{p['key']:<5}{p['label']:<10}{p['ip']:<18}{pkgok+' '+p['pkg']:<34}{net:<6}{has}")
+            d_ok = "↧云端可下载"
+        print(f"{p['key']:<5}{p['label']:<10}{p['ip']:<18}{d_ok+' '+p['dir']:<30}{net:<6}{has}")
     print("\n本机现有打印机:")
     print(installed or "  （无）")
 
@@ -229,8 +193,8 @@ def cmd_status(args):
 
 def cmd_read_ini(args):
     p = find_printer(args.token)
-    pkg = ensure_pkg(Path(args.root), p)
-    ini = parse_ini(extract_setup_ini(pkg))
+    d = ensure_dir(Path(args.root), p)
+    ini = parse_ini(setup_ini_text(d))
     for k, v in ini.items():
         print(f"{k} = {v}")
     if p["name"] != ini.get("PrinterName"):
@@ -240,9 +204,9 @@ def cmd_read_ini(args):
 
 def cmd_install(args):
     p = find_printer(args.token)
-    pkg = ensure_pkg(Path(args.root), p)
+    pkgdir = ensure_dir(Path(args.root), p)
 
-    ini = parse_ini(extract_setup_ini(pkg))
+    ini = parse_ini(setup_ini_text(pkgdir))
     name = ini.get("PrinterName", p["name"])
     ip = ini.get("HostName", p["ip"])
     print(f"目标: [{p['label']}] {name} @ {ip} (TCP {ini.get('PortNumber','9100')})")
@@ -261,11 +225,6 @@ def cmd_install(args):
             print("    使用 --force 自动删除后安装，或运行 uninstall <楼层> --yes。")
             return 1
 
-    workdir = Path(tempfile.mkdtemp(prefix=f"prn_install_{p['key']}_"))
-    print(f"[*] 解压驱动包 -> {workdir}")
-    extract_pkg(pkg, workdir)
-    pkgdir = next(d for d in workdir.iterdir() if d.is_dir())
-
     ini_path = pkgdir / "EzInst" / "setup.ini"
     if args.silent and ini_path.exists():
         text = ini_path.read_bytes().decode("utf-16-le").lstrip("\ufeff")
@@ -278,7 +237,7 @@ def cmd_install(args):
         raise SystemExit(f"[!] 未找到安装入口: {setup_exe}")
 
     print("[*] 启动安装器（如弹出 UAC 请确认；安装窗口中点确认，完成后询问重启时点\"否\"）...")
-    run = subprocess.run(
+    subprocess.run(
         ["powershell", "-NoProfile", "-Command",
          f"Start-Process -FilePath '{setup_exe}' -WorkingDirectory '{pkgdir}' -Verb RunAs -Wait; $LASTEXITCODE"],
     )
@@ -286,18 +245,13 @@ def cmd_install(args):
     print(f"\n[*] 安装器退出，验证结果: 打印机 {'已安装 √' if ok else '未检测到 ×'}")
     if not ok:
         print(get_local_printers())
-    if ok:
-        print(f"[*] 清理临时目录 {workdir}")
-        shutil.rmtree(workdir, ignore_errors=True)
-    else:
-        print(f"[!] 临时目录保留供排查: {workdir}")
     return 0 if ok else 1
 
 
 def cmd_uninstall(args):
     p = find_printer(args.token)
-    pkg_path = Path(args.root) / p["pkg"]
-    ini = parse_ini(extract_setup_ini(pkg_path)) if pkg_path.exists() else {}
+    d = Path(args.root) / p["dir"]
+    ini = parse_ini(setup_ini_text(d)) if (d / "EzInst" / "setup.ini").exists() else {}
     name = ini.get("PrinterName", p["name"])
     ip = ini.get("HostName", p["ip"])
     print(f"目标: 删除打印机 {name!r} 及与 {ip} 相关的端口")
