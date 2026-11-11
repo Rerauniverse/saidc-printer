@@ -57,6 +57,40 @@ UNRAR_CANDIDATES = [
     r"C:\Program Files (x86)\WinRAR\UnRAR.exe",
 ]
 
+# 安装前完整性校验：防止仓库内容被篡改注入恶意程序。
+# 更新驱动版本后，运行 `hash <楼层>` 重新获取并更新这里的值。
+KNOWN_HASHES = {
+    "setup.exe":         "2cea7c422bcb62937d12bbf38878e513eef869c3a81d02e9c697e88995a8ac0e",
+    "EzInst/setup.exe":  "5be837eca063bd5b27486a8ddd2ec42b2374f1f90d0d2a9d130558c6bba27180",
+    "EzInst/verup.exe":  "26166b31966f7ad580a1d5b713153b1652e780bc75a74f0a856cf860fc9e87cc",
+}
+
+
+def sha256_of(path: Path) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def verify_hashes(driver_dir: Path):
+    """安装前校验执行体哈希，被篡改则拒绝运行。"""
+    bad = []
+    for rel, want in KNOWN_HASHES.items():
+        f = driver_dir / rel
+        if not f.exists():
+            continue  # 旧版本包可能没有该文件，由安装器自行处理
+        got = sha256_of(f)
+        if got != want:
+            bad.append(f"  {rel}\n    期望 {want}\n    实际 {got}")
+    if bad:
+        raise SystemExit(
+            "[!] 安全校验失败：安装程序与已知可信版本不符，已拒绝安装。\n"
+            + "\n".join(bad)
+            + "\n    若确认是官方新版驱动，请运行 hash <楼层> 核对新哈希后更新脚本中的 KNOWN_HASHES。")
+
 
 def find_printer(token: str):
     """按楼层号/IP/关键字查找映射条目。"""
@@ -246,6 +280,8 @@ def cmd_install(args):
     if not setup_exe.exists():
         raise SystemExit(f"[!] 未找到安装入口: {setup_exe}")
 
+    verify_hashes(pkgdir)
+
     print("[*] 启动安装器（如弹出 UAC 请确认；安装窗口中点确认，完成后询问重启时点\"否\"）...")
     subprocess.run(
         ["powershell", "-NoProfile", "-Command",
@@ -274,6 +310,19 @@ def cmd_uninstall(args):
     return 0 if ok else 1
 
 
+def cmd_hash(args):
+    """打印驱动目录中执行体的 SHA256，用于驱动升级后更新 KNOWN_HASHES。"""
+    p = find_printer(args.token)
+    d = ensure_dir(Path(args.root), p)
+    for rel in KNOWN_HASHES:
+        f = d / rel
+        if f.exists():
+            print(f'    "{rel}": "{sha256_of(f)}",')
+        else:
+            print(f'    "{rel}": (文件不存在)')
+    print("确认可信后，将以上值更新到脚本中的 KNOWN_HASHES。")
+
+
 def main():
     ap = argparse.ArgumentParser(description="楼层 C5570 打印机驱动安装工具")
     ap.add_argument("--root", default=os.environ.get("PRN_DRIVER_ROOT", DEFAULT_ROOT),
@@ -287,6 +336,9 @@ def main():
     s = sub.add_parser("read-ini", help="读取包内 setup.ini")
     s.add_argument("token")
     s.set_defaults(fn=cmd_read_ini)
+    s = sub.add_parser("hash", help="打印执行体 SHA256（用于升级后更新校验值）")
+    s.add_argument("token")
+    s.set_defaults(fn=cmd_hash)
     s = sub.add_parser("install", help="一键安装")
     s.add_argument("token")
     s.add_argument("--force", action="store_true", help="安装前自动删除同名旧打印机")

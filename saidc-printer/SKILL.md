@@ -49,6 +49,7 @@ python scripts/install_printer.py uninstall 1 --yes
 
 - 驱动以解压后的目录形式存放：`一层/`、`二层生态/`、`二层研发/`、`四层/`、`五层/`（各含根级 `setup.exe` 与 `EzInst/setup.ini`）。可放本地根目录，也可存于 GitHub 仓库 `Rerauniverse/saidc-printer`；本地缺失时脚本自动下载仓库 archive 并解出对应目录（可用环境变量 `PRN_DRIVER_GITHUB_REPO` / `PRN_DRIVER_GITHUB_BRANCH` 覆盖）。
 - 下载认证按优先级读取：环境变量 `GITHUB_TOKEN` → `gh auth token` → git 凭据管理器。公开仓库无凭据也可直接下载；私有仓库则需要凭据且为协作者。
+- **完整性校验**：安装前脚本对 `setup.exe`、`EzInst/setup.exe`、`EzInst/verup.exe` 做 SHA256 校验（KNOWN_HASHES），与可信版本不符即拒绝安装，防止仓库内容被篡改注入恶意程序。更新驱动版本后运行 `hash <楼层>` 获取新哈希并更新脚本。
 - 安装需要管理员权限；脚本通过 UAC 弹窗提升，不可在无确认的情况下静默提权。
 - `setup.ini` 为 UTF-16LE 编码（带 BOM），读取时必须按 UTF-16LE 解码。
 - rar 包解压依赖 WinRAR 的 `UnRAR.exe`（已确认本机位于 `C:\Program Files\WinRAR\UnRAR.exe`）；驱动目录中 `dl_`/`xr_` 等扩展名文件由安装器自行解包，无需预处理。

@@ -48,6 +48,10 @@ python saidc-printer/scripts/install_printer.py uninstall 1 --yes   # 卸载
 
 挂载 `macos 苹果/ffmacprnstd2608bm120iml.dmg` 安装驱动，然后在系统设置 → 打印机与扫描仪中通过 IP（LPD/IPP，端口 9100）添加对应楼层打印机，详见同目录视频教程。
 
+## 安全机制
+
+安装脚本内置执行体 SHA256 校验（`setup.exe`、`EzInst/setup.exe`、`EzInst/verup.exe`），下载的驱动若与可信版本不符会拒绝安装，防止仓库内容被篡改注入恶意程序。仓库维护者升级驱动后运行 `hash <楼层>` 获取新哈希更新脚本中的 `KNOWN_HASHES` 即可。
+
 ## 注意
 
 - 驱动文件来自富士胶片官网公开渠道；仓库内容含内网打印机地址，请自行评估是否公开。
