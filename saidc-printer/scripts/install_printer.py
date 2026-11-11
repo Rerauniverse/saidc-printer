@@ -87,25 +87,24 @@ def ensure_pkg(root: Path, p: dict) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     tok = github_token()
     if not tok:
-        raise SystemExit(
-            "[!] 本地没有驱动包，且未找到 GitHub 凭据，无法自动下载。\n"
-            "    请任选其一：\n"
-            "    1) 安装 GitHub CLI 并运行: gh auth login（需为仓库协作者）\n"
-            "    2) 安装 Git 并登录过 github.com 凭据\n"
-            "    3) 设置环境变量 GITHUB_TOKEN（需有该仓库 Contents 读权限）\n"
-            "    或直接把驱动包复制到: " + str(root))
-    url = (f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/"
-           + urllib.parse.quote(p["pkg"]))
-    print(f"[*] 本地无驱动包，从 GitHub 下载: {p['pkg']} ...")
-    req = urllib.request.Request(url, headers={
-        "Authorization": f"token {tok}", "User-Agent": "saidc-printer"})
+        # 公开仓库无需凭据，直接匿名下载；私有仓库会得到 404 并提示
+        print(f"[*] 本地无驱动包，从 GitHub 下载: {p['pkg']} ...")
+        url = (f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/"
+               + urllib.parse.quote(p["pkg"]))
+        headers = {"User-Agent": "saidc-printer"}
+        err_hint = "仓库不存在或文件未上传"
+    else:
+        print(f"[*] 本地无驱动包，从 GitHub 下载（已认证）: {p['pkg']} ...")
+        url = (f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/"
+               + urllib.parse.quote(p["pkg"]))
+        headers = {"Authorization": f"token {tok}", "User-Agent": "saidc-printer"}
+        err_hint = "仓库不存在/文件未上传，或凭据无权限"
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=120) as r:
             data = r.read()
     except urllib.error.HTTPError as e:
-        hint = {401: "token 无效或过期", 403: "无访问权限（请确认已被加为仓库协作者）",
-                404: "仓库/分支/文件名不存在"}.get(e.code, "")
-        raise SystemExit(f"[!] 下载失败 HTTP {e.code} {hint}: {url}")
+        raise SystemExit(f"[!] 下载失败 HTTP {e.code}（{err_hint}）: {url}")
     pkg.write_bytes(data)
     print(f"[*] 下载完成 {len(data)/1e6:.1f} MB -> {pkg}")
     return pkg

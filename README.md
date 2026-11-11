@@ -46,9 +46,7 @@ python saidc-printer/scripts/install_printer.py uninstall 1 --yes   # 卸载
 
 楼层标识：`1` / `2eco` / `2rd` / `4` / `5`，也可直接用 IP。rar 解压需要本机安装 WinRAR。
 
-**自动下载驱动**：同事电脑上无需手动拷贝驱动包 —— skill 会自动从本仓库下载（`raw.githubusercontent.com`）。前提：
-1. 同事被加为仓库协作者（Settings → Collaborators）
-2. 同事本机有 GitHub 凭据：`gh auth login`，或装 Git 并登录过 github.com，或设置环境变量 `GITHUB_TOKEN`
+**自动下载驱动**：同事电脑上无需手动拷贝驱动包 —— skill 会自动从本仓库下载（`raw.githubusercontent.com`，公开仓库无需登录）。
 
 ## macOS 安装
 
@@ -56,5 +54,4 @@ python saidc-printer/scripts/install_printer.py uninstall 1 --yes   # 卸载
 
 ## 注意
 
-- 本仓库为私有仓库，包含公司内网信息，请勿公开。
-- 技术支持：18515555522
+- 驱动文件来自富士胶片官网公开渠道；仓库内容含内网打印机地址，请自行评估是否公开。
