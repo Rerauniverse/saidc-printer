@@ -21,6 +21,9 @@ import socket
 import subprocess
 import sys
 import tempfile
+import urllib.error
+import urllib.parse
+import urllib.request
 import zipfile
 from pathlib import Path
 
@@ -43,10 +46,69 @@ PRINTERS = [
 ]
 
 DEFAULT_ROOT = r"C:\Users\a3861\Desktop\超智算\打印机驱动"
+# 本地无驱动包时，从该 GitHub 仓库（raw）自动下载。需为协作者并已登录。
+GITHUB_REPO = os.environ.get("PRN_DRIVER_GITHUB_REPO",
+                             "Rerauniverse/saidc-printer")
+GITHUB_BRANCH = os.environ.get("PRN_DRIVER_GITHUB_BRANCH", "main")
 UNRAR_CANDIDATES = [
     r"C:\Program Files\WinRAR\UnRAR.exe",
     r"C:\Program Files (x86)\WinRAR\UnRAR.exe",
 ]
+
+
+def github_token():
+    """按优先级获取 GitHub 凭据: GITHUB_TOKEN 环境变量 > gh CLI > git 凭据管理器。"""
+    t = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if t:
+        return t.strip()
+    try:
+        r = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    except FileNotFoundError:
+        pass
+    try:
+        out = subprocess.run(["git", "credential", "fill"],
+                             input="protocol=https\nhost=github.com\n\n",
+                             capture_output=True, text=True, timeout=15).stdout
+        d = dict(l.split("=", 1) for l in out.strip().splitlines() if "=" in l)
+        if d.get("password"):
+            return d["password"]
+    except Exception:
+        pass
+    return None
+
+
+def ensure_pkg(root: Path, p: dict) -> Path:
+    """确保驱动包可用：本地存在则直接用，否则从 GitHub 私有仓库下载。"""
+    pkg = root / p["pkg"]
+    if pkg.exists():
+        return pkg
+    root.mkdir(parents=True, exist_ok=True)
+    tok = github_token()
+    if not tok:
+        raise SystemExit(
+            "[!] 本地没有驱动包，且未找到 GitHub 凭据，无法自动下载。\n"
+            "    请任选其一：\n"
+            "    1) 安装 GitHub CLI 并运行: gh auth login（需为仓库协作者）\n"
+            "    2) 安装 Git 并登录过 github.com 凭据\n"
+            "    3) 设置环境变量 GITHUB_TOKEN（需有该仓库 Contents 读权限）\n"
+            "    或直接把驱动包复制到: " + str(root))
+    url = (f"https://raw.githubusercontent.com/{GITHUB_REPO}/{GITHUB_BRANCH}/"
+           + urllib.parse.quote(p["pkg"]))
+    print(f"[*] 本地无驱动包，从 GitHub 下载: {p['pkg']} ...")
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"token {tok}", "User-Agent": "saidc-printer"})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            data = r.read()
+    except urllib.error.HTTPError as e:
+        hint = {401: "token 无效或过期", 403: "无访问权限（请确认已被加为仓库协作者）",
+                404: "仓库/分支/文件名不存在"}.get(e.code, "")
+        raise SystemExit(f"[!] 下载失败 HTTP {e.code} {hint}: {url}")
+    pkg.write_bytes(data)
+    print(f"[*] 下载完成 {len(data)/1e6:.1f} MB -> {pkg}")
+    return pkg
 
 
 def find_printer(token: str):
@@ -146,7 +208,12 @@ def cmd_list(args):
         pkg = root / p["pkg"]
         net = "通" if tcp_probe(p["ip"]) else "不通"
         has = "是" if p["name"] in installed else "否"
-        pkgok = "√" if pkg.exists() else "×缺包"
+        if pkg.exists():
+            pkgok = "√本地"
+        elif github_token():
+            pkgok = "↧云端可下载"
+        else:
+            pkgok = "×缺包"
         print(f"{p['key']:<5}{p['label']:<10}{p['ip']:<18}{pkgok+' '+p['pkg']:<34}{net:<6}{has}")
     print("\n本机现有打印机:")
     print(installed or "  （无）")
@@ -163,10 +230,7 @@ def cmd_status(args):
 
 def cmd_read_ini(args):
     p = find_printer(args.token)
-    root = Path(args.root)
-    pkg = root / p["pkg"]
-    if not pkg.exists():
-        raise SystemExit(f"[!] 找不到驱动包: {pkg}")
+    pkg = ensure_pkg(Path(args.root), p)
     ini = parse_ini(extract_setup_ini(pkg))
     for k, v in ini.items():
         print(f"{k} = {v}")
@@ -177,10 +241,7 @@ def cmd_read_ini(args):
 
 def cmd_install(args):
     p = find_printer(args.token)
-    root = Path(args.root)
-    pkg = root / p["pkg"]
-    if not pkg.exists():
-        raise SystemExit(f"[!] 找不到驱动包: {pkg}")
+    pkg = ensure_pkg(Path(args.root), p)
 
     ini = parse_ini(extract_setup_ini(pkg))
     name = ini.get("PrinterName", p["name"])
@@ -236,8 +297,8 @@ def cmd_install(args):
 
 def cmd_uninstall(args):
     p = find_printer(args.token)
-    ini = parse_ini(extract_setup_ini(Path(args.root) / p["pkg"])) \
-        if (Path(args.root) / p["pkg"]).exists() else {}
+    pkg_path = Path(args.root) / p["pkg"]
+    ini = parse_ini(extract_setup_ini(pkg_path)) if pkg_path.exists() else {}
     name = ini.get("PrinterName", p["name"])
     ip = ini.get("HostName", p["ip"])
     print(f"目标: 删除打印机 {name!r} 及与 {ip} 相关的端口")

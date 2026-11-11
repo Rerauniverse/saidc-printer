@@ -46,6 +46,10 @@ python saidc-printer/scripts/install_printer.py uninstall 1 --yes   # 卸载
 
 楼层标识：`1` / `2eco` / `2rd` / `4` / `5`，也可直接用 IP。rar 解压需要本机安装 WinRAR。
 
+**自动下载驱动**：同事电脑上无需手动拷贝驱动包 —— skill 会自动从本仓库下载（`raw.githubusercontent.com`）。前提：
+1. 同事被加为仓库协作者（Settings → Collaborators）
+2. 同事本机有 GitHub 凭据：`gh auth login`，或装 Git 并登录过 github.com，或设置环境变量 `GITHUB_TOKEN`
+
 ## macOS 安装
 
 挂载 `macos 苹果/ffmacprnstd2608bm120iml.dmg` 安装驱动，然后在系统设置 → 打印机与扫描仪中通过 IP（LPD/IPP，端口 9100）添加对应楼层打印机，详见同目录视频教程。

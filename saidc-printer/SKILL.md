@@ -47,6 +47,8 @@ python scripts/install_printer.py uninstall 1 --yes
 
 ## 注意事项
 
+- 驱动包可放在本地根目录，也可放在 GitHub 私有仓库 `Rerauniverse/saidc-printer`：本地缺失时脚本会自动从仓库 raw 下载（可用环境变量 `PRN_DRIVER_GITHUB_REPO` / `PRN_DRIVER_GITHUB_BRANCH` 覆盖）。
+- 自动下载需要 GitHub 凭据，按优先级读取：环境变量 `GITHUB_TOKEN` → `gh auth token` → git 凭据管理器。凭据持有者必须是该仓库协作者；无凭据时提示用户登录或手动放置驱动包。
 - 安装需要管理员权限；脚本通过 UAC 弹窗提升，不可在无确认的情况下静默提权。
 - `setup.ini` 为 UTF-16LE 编码（带 BOM），读取时必须按 UTF-16LE 解码。
 - rar 包解压依赖 WinRAR 的 `UnRAR.exe`（已确认本机位于 `C:\Program Files\WinRAR\UnRAR.exe`）。
